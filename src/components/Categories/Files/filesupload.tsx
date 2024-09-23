@@ -32,9 +32,9 @@ const FileUpload = ({
   setShowFileUpload,
   getAllFiles,
 }: {
-  showFileUpload: boolean;
-  setShowFileUpload: Dispatch<SetStateAction<boolean>>;
-  getAllFiles: (page: number) => void;
+  showFileUpload?: boolean;
+  setShowFileUpload?: Dispatch<SetStateAction<boolean>>;
+  getAllFiles?: (page: number) => void;
 }) => {
   const router = useRouter();
   const { file_id } = useParams();
@@ -66,9 +66,9 @@ const FileUpload = ({
   const user = useSelector((state: RootState) => state?.user?.access_token);
   // const access_token = user?.access_token;
 
-  const handleToggle = () => {
-    setShowFileUpload((prevState: any) => !prevState);
-  };
+  // const handleToggle = () => {
+  //   setShowFileUpload((prevState: any) => !prevState);
+  // };
 
   const handleParts = (size: number) => {
     const MB = 1024 * 1024; // 1 MB in bytes
@@ -94,7 +94,9 @@ const FileUpload = ({
   };
 
   const handleCancel = () => {
-    setShowFileUpload(false);
+    {
+      setShowFileUpload && setShowFileUpload(false);
+    }
     setSize({
       size: "",
       unit: 1024 * 1024,
@@ -135,7 +137,7 @@ const FileUpload = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setUploadData((prev: any) => ({ ...prev, [name]: parseInt(value) }));
+    setUploadData((prev: any) => ({ ...prev, [name]: value }));
   };
 
   const updateFileStatus = (
@@ -257,6 +259,7 @@ const FileUpload = ({
         {
           method: "POST",
           body: JSON.stringify({
+            title: uploaddata.title,
             name: data.file_name,
             size: data.file_size,
             path: data?.path,
@@ -276,7 +279,7 @@ const FileUpload = ({
         console.log("File metadata saved:", result);
         setUploadProgress(100);
         updateFileStatus(file.name, file.size, file.type, "success");
-        getAllFiles(1);
+        getAllFiles && getAllFiles(1);
         toast.success(result?.message);
         handleClear();
         setTimeout(() => {
@@ -476,7 +479,7 @@ const FileUpload = ({
         console.log("File metadata saved:", result);
         setUploadProgress(100);
         // updateFileStatus(file.name, file.size, file.type, "success");
-        getAllFiles(1);
+        getAllFiles && getAllFiles(1);
         toast.success(result?.message);
         handleClear();
         setTimeout(() => {
@@ -509,7 +512,7 @@ const FileUpload = ({
   }, [etagData, parts]);
 
   return (
-    <Card className="sticky h-screen p-6 m-4 bg-white rounded-lg shadow-md">
+    <Card className="sticky p-6 m-4 bg-white rounded-lg shadow-md">
       <div className="flex flex-col h-full justify-between">
         <div>
           <h2 className="text-xl font-semibold mb-4">Upload Documents</h2>
@@ -584,36 +587,16 @@ const FileUpload = ({
               />
             </div>
           )}
-          {/* <div className="mt-4">
-              <Label htmlFor="size">Chunk Size</Label>
-              <Input
-                name="size"
-                value={size.size}
-                placeholder="Enter chunk size"
-                onChange={handleChange}
-                type="number"
-                className="mt-2"
-              />
-
-              <Label htmlFor="unit" className="mt-4">
-                Units
-              </Label>
-              <Select
-                onValueChange={(value: any) =>
-                  setSize((prev) => ({ ...prev, unit: Number(value) }))
-                }
-                value={String(size.unit)}
-              >
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1048576">MB</SelectItem>
-                  <SelectItem value="1073741824">GB</SelectItem>
-                  <SelectItem value="1099511627776">TB</SelectItem>
-                </SelectContent>
-              </Select>
-            </div> */}
+          <div className="mt-4">
+            <Label htmlFor="size">Title</Label>
+            <Input
+              name="title"
+              value={uploaddata?.title}
+              placeholder="Enter File Name"
+              onChange={handleChange}
+              className="mt-2"
+            />
+          </div>
         </div>
         <div>
           <ul>

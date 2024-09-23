@@ -27,19 +27,19 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/redux";
 import CategoriesSideBar from "@/components/Dashboard/categoriesSidebar";
 
-interface FileData {
-  id: string;
-  name: string;
-  mime_type: string;
-  type: string;
-  size: number;
-  status: string;
-  url: string;
-}
 import MyListFiles from "./mylistfiles";
-import { FileData } from "@/lib/interfaces/files";
 import Loading from "@/components/Core/loading";
 import { Table2 } from "lucide-react";
+import { FileData } from "@/lib/interfaces/files";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export const truncateFileName = (name: string, maxLength: number) => {
   // Remove the extension
@@ -89,7 +89,7 @@ const Files = () => {
   };
 
   const handleToggle = () => {
-    setShowFileUpload((prevState: any) => !prevState);
+    setShowFileUpload(true);
   };
 
   const getAllFiles = async (page: number, isScrolling: boolean = false) => {
@@ -274,7 +274,7 @@ const Files = () => {
         <div className="flex flex-1 flex-col bg-muted/40">
           {/* Header */}
 
-          <header className=" sticky  ml-40 top-[10%] z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+          <header className=" sticky  top-[10%] z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <Sheet>
               <SheetTrigger asChild>
                 <Button size="icon" variant="outline" className="sm:hidden">
@@ -375,13 +375,7 @@ const Files = () => {
                 <div
                   className=" right-0 top-0 w-85 h-20   transition-all duration-300"
                   style={{ zIndex: 1000 }}
-                >
-                  <FileUpload
-                    showFileUpload={showFileUpload}
-                    setShowFileUpload={setShowFileUpload}
-                    getAllFiles={getAllFiles}
-                  />
-                </div>
+                ></div>
               )}
             </div>
           ) : (
@@ -403,6 +397,33 @@ const Files = () => {
         </div>
       </div>
       <Loading loading={loading} />
+      <Dialog
+        open={showFileUpload}
+        onOpenChange={() => setShowFileUpload(false)}
+      >
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>New FileUpload</DialogTitle>
+          </DialogHeader>
+          <FileUpload
+            showFileUpload={showFileUpload}
+            setShowFileUpload={setShowFileUpload}
+            getAllFiles={getAllFiles}
+          />
+          <DialogFooter>
+            {/* <Button
+              onClick={() => setShowFileUpload(false)}
+              // className="bg-grey-700"
+              // variant="outline"
+              variant="secondary"
+              type="submit"
+            >
+              Cancel
+            </Button>
+            <Button type="submit">Create</Button> */}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

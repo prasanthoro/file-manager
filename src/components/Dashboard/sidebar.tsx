@@ -95,6 +95,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import FileUpload from "../Categories/Files/filesupload";
 
 export function SideBar({
   categoryid,
@@ -112,12 +113,14 @@ export function SideBar({
 
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [fileOpen, setFileOpen] = useState(false);
   const [data, setData] = useState({
     name: "",
     description: "",
   });
   const [recentCategoryId, setRecentCategoryId] = useState(0);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [errMessages, setErrMessages] = useState<any>();
   const user = useSelector((state: RootState) => state?.user?.user_details);
 
   const handleCard = () => {
@@ -159,12 +162,16 @@ export function SideBar({
 
       if (response?.status == 200 || response?.status == 201) {
         setOpen(false);
-        router.push("/categories");
+        console.log(response);
+        router.replace(`/categories/${response?.data?.data?.id}/files`);
 
         getAllCategories && getAllCategories(1, false);
 
         // toast.success(response?.data?.message);
         // setDeleteid(false);
+      } else if (response?.status === 422 || response?.status === 409) {
+        console.log(response);
+        setErrMessages(response?.data?.errors);
       } else {
         throw response;
       }
@@ -194,6 +201,10 @@ export function SideBar({
     setCategoryOpen(true);
   };
 
+  const handleCreateFile = () => {
+    setFileOpen(true);
+  };
+
   const isActive = (href: string) => pathname.includes(href);
 
   // const handleCategories = (categoryid: number) => {
@@ -205,7 +216,7 @@ export function SideBar({
   }, []);
 
   return (
-    <div className="flex">
+    <div className="flex mt-20">
       <nav className="flex flex-col h-full w-60 bg-white text-gray-800 py-4 px-3">
         <div className="mb-6">
           <DropdownMenu>
@@ -222,7 +233,7 @@ export function SideBar({
                   <span>New Category</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCreateFile}>
                   <File className="mr-2 h-4 w-4" />
                   <span>File Upload</span>
                 </DropdownMenuItem>
@@ -342,6 +353,11 @@ export function SideBar({
                 placeholder="Enter the Category Name"
                 onChange={handleTextFieldChange}
               />
+              {errMessages ? (
+                <span className="text-red-500">{errMessages?.name}</span>
+              ) : (
+                ""
+              )}
             </div>
             <DialogFooter>
               <Button

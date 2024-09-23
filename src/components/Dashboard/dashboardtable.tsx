@@ -145,7 +145,7 @@ export function DashboardTable() {
   }, []);
 
   return (
-    <div className="ml-40 mt-10 flex-grow flex flex-col justify-between p-6 w-[140%]">
+    <div className="mt-10 flex-grow flex flex-col justify-between p-6 w-[140%]">
       <Card className="h-full">
         {/* <CardHeader className="px-7">
           <CardTitle>Recent Files</CardTitle>

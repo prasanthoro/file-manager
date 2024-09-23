@@ -11,7 +11,7 @@ import { Table2 } from "lucide-react";
 
 const MyListFiles = ({ filesData }: { filesData: FileData[] }) => {
   return (
-    <div className="ml-40 mt-10 flex-grow flex flex-col justify-between p-6 ">
+    <div className=" mt-10 flex-grow flex flex-col justify-between p-6 ">
       <Card className="h-full">
         {/* <CardHeader className="px-7">
           <CardTitle>Recent Files</CardTitle>

@@ -190,7 +190,10 @@ const CategoriesSideBar = ({
                   height={20}
                   className="transition-all duration-200"
                 />
-                <span>{data?.name}</span>
+                <span>
+                  {data?.name.charAt(0).toUpperCase() +
+                    data?.name.slice(1).toLowerCase()}
+                </span>
               </li>
             </ul>
           ))
