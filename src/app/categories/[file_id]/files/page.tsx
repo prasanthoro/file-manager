@@ -1,7 +1,14 @@
-import { Categories } from "@/components/Categories";
-import Files from "@/components/Categories/Files";
-import Image from "next/image";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
-export default function Home() {
-  return <Files />;
+const FilesComponent = dynamic(() => import("@/components/Categories/Files"), {
+  ssr: false,
+});
+
+export default function CategoriesFilesPage() {
+  return (
+    <Suspense>
+      <FilesComponent />
+    </Suspense>
+  );
 }

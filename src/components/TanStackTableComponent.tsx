@@ -21,6 +21,10 @@ import {
 //import TablePagination from "./TablePagination";
 
 const TanStackTableComponent: FunctionComponent<any> = ({
+<<<<<<< HEAD
+=======
+  //tanstackTablePropTypes
+>>>>>>> features/categories
   columns,
   data,
   loading,

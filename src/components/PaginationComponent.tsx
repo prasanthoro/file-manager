@@ -7,9 +7,8 @@ import {
   PaginationLink,
   PaginationNext,
 } from "@/components/ui/pagination";
-//import ItemsPerPageDropdown from "./ItemsPerPageDropdown";
+import ItemsPerPageDropdown from "./ItemsPerPageDropdown";
 import { Input } from "./ui/input";
-import ItemsPerPageDropdown from "./ItemsPerpageComponent";
 
 interface PaginationProps {
   page: number;

@@ -1,7 +1,4 @@
 "use client";
-import { ListOrdered, PanelLeft } from "lucide-react";
-
-import { SideBar } from "@/components/Dashboard/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,6 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
 import {
   useParams,
   usePathname,
@@ -18,105 +16,167 @@ import {
   useSearchParams,
 } from "next/navigation";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { getAllFilesAPI, getMyFilesAPI } from "@/lib/services/files";
-import { useEffect, useRef, useState } from "react";
-import FileUpload from "./filesupload";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { useSelector } from "react-redux";
 import { RootState } from "@/redux";
-import CategoriesSideBar from "@/components/Dashboard/categoriesSidebar";
+import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { DateRangePicker } from "rsuite";
+import "rsuite/dist/rsuite.css";
 
-import MyListFiles from "./mylistfiles";
-import { FileData } from "@/lib/interfaces/files";
-import Loading from "@/components/Core/loading";
-import { Table2 } from "lucide-react";
-import { prepareQueryParams } from "@/lib/helpers/Core/prepareQueryParams";
-import { prepareURLEncodedParams } from "@/lib/helpers/prepareUrlEncodedParams";
-
-export interface fileapiprops {
-  page: number;
-  limit: number;
-  sort_by: string;
-  sort_type: string;
+interface FileData {
+  id: string;
+  name: string;
+  mime_type: string;
+  type: string;
+  size: number;
+  status: string;
+  url: string;
 }
 
-export const truncateFileName = (name: string, maxLength: number) => {
-  // Remove the extension
-  const baseName = name.split(".")[0]; // Get the part before the file extension
-  if (baseName.length <= maxLength) {
-    return baseName;
-  }
-  return `${baseName.substring(0, maxLength)}...`; // Truncate after maxLength and add '...'
+import MultiPartUploadComponent from "@/components/MultipartUpload/MultiPartUpload";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import FileUpload from "./filesupload";
+import MyListFiles from "./mylistfiles";
+import Loading from "@/components/Core/loading";
+import dayjs from "dayjs";
+import { predefinedRanges } from "@/components/Core/DateFilter";
+import {
+  apiPropsForQuaryParams,
+  prepareQueryParams,
+} from "@/lib/helpers/Core/prepareQueryParams";
+import { prepareURLEncodedParams } from "@/lib/helpers/prepareUrlEncodedParams";
+import { Input } from "@/components/ui/input";
+import { ListOrdered, PanelLeft, Search, Table2 } from "lucide-react";
+
+const truncateFileName = (name: string, maxLength: number) => {
+  const baseName = name.split(".")[0];
+  return baseName.length <= maxLength
+    ? baseName
+    : `${baseName.substring(0, maxLength)}...`;
 };
 
 export const formatSize = (sizeInBytes: number) => {
-  if (sizeInBytes < 1048576) {
-    // Less than 1 MB and 1048576bytes
-    return `${(sizeInBytes / 1024).toFixed(2)} KB`;
-  } else {
-    // 1 MB or more
-    return `${(sizeInBytes / 1048576).toFixed(2)} MB`;
-  }
+  return sizeInBytes < 1048576
+    ? `${(sizeInBytes / 1024).toFixed(2)} KB`
+    : `${(sizeInBytes / 1048576).toFixed(2)} MB`;
 };
 
-const Files = () => {
+const FilesComponent = () => {
   const router = useRouter();
   const params = useSearchParams();
   const pathname = usePathname();
 
   const [page, setPage] = useState(1);
-  const [showFileUpload, setShowFileUpload] = useState(false);
-  const [filesData, setFilesData] = useState<FileData[]>([]); // State for file list
-  const [categoryId, setCategoryId] = useState<number | null>(null); // Keep track of category ID
+  const [showFileUpload, setShowFileUpload] = useState<any>(false);
+  const [filesData, setFilesData] = useState<FileData[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [noData, setNoData] = useState(false);
-  const [listView, setListView] = useState(false);
-
+  const [listView, setListView] = useState(true);
+  const [showMultipartUpload, setShowMultipartUpload] = useState(false);
+  const [paginationDetails, setPaginationDetails] = useState({});
+  const [selectedDates, setSelectedDates] = useState<[Date, Date] | null>(null);
+  const [formattedStartDate, setFormattedStartDate] = useState<string | null>(
+    null
+  );
+  const [search, setSearch] = useState("");
+  const [formattedEndDate, setFormattedEndDate] = useState<string | null>(null);
   const lastFileRef = useRef<HTMLDivElement>(null);
   const fileListRef = useRef<HTMLDivElement>(null);
-
   const { file_id } = useParams();
-
   const user = useSelector((state: RootState) => state?.user);
-  console.log(user?.access_token);
-
-  const formatSize = (sizeInBytes: number) => {
-    if (sizeInBytes < 1048576) {
-      // Less than 1 MB and 1048576bytes
-      return `${(sizeInBytes / 1024).toFixed(2)} KB`;
-    } else {
-      // 1 MB or more
-      return `${(sizeInBytes / 1048576).toFixed(2)} MB`;
-    }
-  };
-
+  const [searchParams, setSearchParams] = useState(
+    Object.fromEntries(new URLSearchParams(Array.from(params.entries())))
+  );
   const handleToggle = () => {
     setShowFileUpload((prevState: any) => !prevState);
   };
 
-  const getAllFiles = async (page: number, isScrolling: boolean = false) => {
+  const handleMultipartUploadToggle = () => {
+    setShowMultipartUpload((prevState) => !prevState);
+    handleToggle();
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value.toLowerCase());
+  };
+
+  const handleDateChange = (dates: any) => {
+    setSelectedDates(dates);
+    setFormattedStartDate(null);
+    setFormattedEndDate(null);
+
+    if (Array.isArray(dates) && dates.length === 2) {
+      const [startDate, endDate] = dates;
+
+      const formattedStartDate = dayjs(startDate)
+        .startOf("day")
+        .format("YYYY-MM-DD");
+      const formattedEndDate = dayjs(endDate).endOf("day").format("YYYY-MM-DD");
+
+      setFormattedStartDate(formattedStartDate);
+      setFormattedEndDate(formattedEndDate);
+      if (file_id) {
+        getAllFiles({
+          date_from: formattedStartDate,
+          date_to: formattedEndDate,
+        });
+      } else {
+        getAllMyFiles({
+          date_from: formattedStartDate,
+          date_to: formattedEndDate,
+        });
+      }
+    } else {
+      if (file_id) {
+        getAllFiles({
+          date_from: "",
+          date_to: "",
+        });
+      } else {
+        getAllMyFiles({
+          date_from: "",
+          date_to: "",
+        });
+      }
+    }
+  };
+
+  const getAllFiles = async ({
+    page = params.get("page") as string,
+    limit = params.get("limit") as string,
+    orderBy = params.get("sort_by") as string,
+    orderType = params.get("sort_type") as string,
+    search_string = params.get("search_string") as string,
+    date_from = params.get("date_from") as any,
+    date_to = params.get("date_to") as any,
+  }: any) => {
+    let queryParams = prepareQueryParams({
+      page: page ? page : 1,
+      limit: limit ? limit : 10,
+      orderBy,
+      orderType,
+      search_string,
+      date_from,
+      date_to,
+    });
+    setLoading(true);
+    let querySting = prepareURLEncodedParams("", queryParams);
+    router.push(`${pathname}${querySting}`);
+    setSearchParams(queryParams);
     try {
-      setLoading(true);
-      const response = await getAllFilesAPI(page, file_id);
+      const response = await getAllFilesAPI(queryParams, file_id);
 
       if (response?.success) {
-        const newPage = page + 1;
-        const newFileData = response.data;
-        // const updatedFilesData = [...filesData, ...newFileData];
-        setFilesData((prevFilesData) => [...prevFilesData, ...newFileData]);
-        setPage(newPage);
-
-        if (newFileData.length === 0) {
-          setNoData(true);
-        }
-      } else {
-        console.log(response);
+        let { data, ...rest } = response.data;
+        setPaginationDetails(rest);
+        setFilesData(data);
+        showFileUpload(false);
       }
     } catch (err) {
       console.error("Error fetching files:", err);
@@ -126,38 +186,33 @@ const Files = () => {
   };
 
   const getAllMyFiles = async ({
-    page = Number(params.get("page")) || 1,
-    limit = Number(params.get("limit")) || 10,
-    sort_by = params.get("sort_by") as string,
-    sort_type = params.get("sort_type") as string,
-  }: // isScroll: boolean = false,
-  Partial<fileapiprops>) => {
+    page = params.get("page") as string,
+    limit = params.get("limit") as string,
+    orderBy = params.get("sort_by") as string,
+    orderType = params.get("sort_type") as string,
+    search_string = params.get("search_string") as string,
+    date_from = params.get("date_from") as any,
+    date_to = params.get("date_to") as any,
+  }: any) => {
+    let queryParams = prepareQueryParams({
+      page: page ? page : 1,
+      limit: limit ? limit : 10,
+      orderBy,
+      orderType,
+      search_string,
+      date_from,
+      date_to,
+    });
+    setLoading(true);
+    let querySting = prepareURLEncodedParams("", queryParams);
+    router.push(`${pathname}${querySting}`);
+    setSearchParams(queryParams);
     try {
-      const queryParams = prepareQueryParams({
-        page,
-        limit,
-        sort_by,
-        sort_type,
-      });
-      router.replace(prepareURLEncodedParams(pathname, queryParams));
-
-      setLoading(true);
-      const response = await getMyFilesAPI(queryParams, user?.access_token);
-
+      const response = await getMyFilesAPI(queryParams);
       if (response?.success) {
-        const newPage = page + 1;
-        const newFileData = response.data;
-        // const updatedFilesData = [...filesData, .::.newFileData];
-        setFilesData((prevFilesData) => [...prevFilesData, ...newFileData]);
-        setPage(newPage);
-        console.log(newPage);
-        console.log(setFilesData);
-
-        if (newFileData.length === 0) {
-          setNoData(true);
-        }
-      } else {
-        // throw new Error(response.message || "Failed to load files");
+        let { data, ...rest } = response.data;
+        setPaginationDetails(rest);
+        setFilesData(data);
       }
     } catch (err) {
       console.error("Error fetching files:", err);
@@ -168,260 +223,181 @@ const Files = () => {
 
   useEffect(() => {
     if (file_id) {
-      getAllFiles(page);
-      const id = Array.isArray(file_id) ? file_id[0] : file_id;
-      setCategoryId(parseInt(id));
+      getAllFiles({});
+      setCategoryId(parseInt(Array.isArray(file_id) ? file_id[0] : file_id));
+    } else {
+      getAllMyFiles({});
     }
   }, []);
 
   useEffect(() => {
     const fileListContainer = fileListRef.current;
-
     if (!fileListContainer || noData) return;
 
-    const handleScroll = (file_id: any) => {
+    const handleScroll = () => {
       if (
         fileListContainer.scrollTop + fileListContainer.clientHeight >=
         fileListContainer.scrollHeight
       ) {
-        if (file_id) {
-          getAllFiles(page, true); // Load more files
-        } else {
-          getAllMyFiles({ page });
-        }
+        file_id ? getAllFiles({ page }) : getAllMyFiles({ page });
       }
     };
 
     fileListContainer.addEventListener("scroll", handleScroll);
-
-    return () => {
-      fileListContainer.removeEventListener("scroll", handleScroll);
-    };
+    return () => fileListContainer.removeEventListener("scroll", handleScroll);
   }, [page, filesData, noData, file_id]);
-
-  useEffect(() => {
-    if (file_id) {
-      getAllFiles(page, true);
-    } else {
-      getAllMyFiles({ page });
-    }
-  }, []);
 
   const renderFilePreview = (file: FileData) => {
     const mimeType = file.mime_type;
 
-    if (mimeType.includes("image")) {
-      return (
-        <img
-          src={"/dashboard/stats/image.svg"}
-          alt={file.name}
-          data-file-type="image"
-          width={60}
-          height={60}
-          className="rounded-lg"
-        />
-      );
-    }
+    const fileIcons = {
+      image: "/dashboard/stats/image.svg",
+      video: "/dashboard/stats/video.svg",
+      pdf: "/dashboard/stats/pdf.svg",
+      msword: "/dashboard/stats/docs.svg",
+      others: "/dashboard/stats/others.svg",
+    };
 
-    if (mimeType.includes("video/")) {
+    if (mimeType.includes("image"))
       return (
-        <>
-          {/* <video width={60} height={60} controls>
-            <source src={file.url} type={mimeType} />
-            Your browser does not support the video tag.
-          </video> */}
-          <img
-            src={"/dashboard/stats/video.svg"}
-            alt={file.name}
-            data-file-type="video"
-            width={60}
-            height={60}
-          />
-        </>
+        <img src={fileIcons.image} alt={file.name} width={60} height={60} />
       );
-    }
-
-    if (mimeType == "application/pdf") {
+    if (mimeType.includes("video"))
       return (
-        <img
-          src="/dashboard/stats/pdf.svg"
-          alt={file.name}
-          data-file-type="pdf"
-          width={60}
-          height={60}
-          className="rounded-lg"
-        />
+        <img src={fileIcons.video} alt={file.name} width={60} height={60} />
       );
-    }
-
-    if (mimeType === "application/msword") {
+    if (mimeType === "application/pdf")
+      return <img src={fileIcons.pdf} alt={file.name} width={60} height={60} />;
+    if (mimeType === "application/msword")
       return (
-        <img
-          src="/dashboard/stats/docs.svg"
-          alt={file.name}
-          data-file-type="document"
-          width={60}
-          height={60}
-          className="rounded-lg"
-        />
+        <img src={fileIcons.msword} alt={file.name} width={60} height={60} />
       );
-    }
-
     return (
-      <img
-        src="/dashboard/stats/others.svg"
-        alt={file.name}
-        data-file-type="others"
-        width={60}
-        height={60}
-        className="rounded-lg"
-      />
+      <img src={fileIcons.others} alt={file.name} width={60} height={60} />
     );
   };
 
+  useEffect(() => {
+    const date_from: any = params.get("date_from");
+    const date_to: any = params.get("date_to");
+    if (date_from && date_to) {
+      const startDate = dayjs(date_from, "MM-DD-YYYY").toDate();
+      const endDate = dayjs(date_to, "MM-DD-YYYY").toDate();
+      setSelectedDates([startDate, endDate]);
+    }
+  }, []);
+
+  useEffect(() => {
+    let debounce = setTimeout(() => {
+      if (file_id) {
+        getAllFiles({ page: 1, search_string: search });
+      } else {
+        getAllMyFiles({ page: 1, search_string: search });
+      }
+    }, 500);
+    return () => clearInterval(debounce);
+  }, [search]);
+
   return (
     <>
-      <div className="flex min-h-screen w-full">
-        {/* Sidebar - sticky */}
-        {/* <div className="sticky top-0 left-0 h-screen w-50 bg-white">
-        <SideBar categoryid={categoryId} />
-      </div> */}
-        {/* {file_id && (
-        <div className="w-60 ">
-          <CategoriesSideBar />
-        </div>
-      )} */}
-
-        {/* Main Content */}
-        <div className="flex flex-1 flex-col bg-muted/40">
-          {/* Header */}
-
-          <header className=" sticky  top-[10%] z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <div className="flex min-h-screen w-full bg-muted/40">
+        <div className="flex flex-1 flex-col">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 bg-background px-6 border-b">
             <Sheet>
               <SheetTrigger asChild>
                 <Button size="icon" variant="outline" className="sm:hidden">
                   <PanelLeft className="h-5 w-5" />
-                  <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="sm:max-w-xs"></SheetContent>
+              <SheetContent side="left"></SheetContent>
             </Sheet>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/dashboard">Categories</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/files"> Files</BreadcrumbLink>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-            <span className="flex justify-between items-center ml-90">
-              {/* <Table2 onClick={() => setListView(true)} />
-              <ListOrdered onClick={() => setListView(false)} /> */}
-            </span>
+
+            <div className="ml-auto flex space-x-4">
+              <Table2
+                onClick={() => setListView(true)}
+                className="cursor-pointer"
+              />
+              <ListOrdered
+                onClick={() => setListView(false)}
+                className="cursor-pointer"
+              />
+            </div>
           </header>
 
           {listView ? (
-            <div className=" mt-10 flex-grow flex flex-col justify-between p-6 ">
-              {/* File List */}
-              <div
-                ref={fileListRef} // Ref for scrolling
-                className={`grid gap-10 transition-all duration-300 ${
-                  showFileUpload ? "grid-cols-3" : "grid-cols-4"
-                } flex-grow h-[calc(100vh-5rem)] overflow-y-auto p-4`}
-              >
-                {filesData.length > 0 ? (
-                  filesData.map((file, index) => (
-                    <div
-                      key={file.id}
-                      ref={index === filesData.length - 1 ? lastFileRef : null} // load more file when reach to last
-                      className="flex flex-col items-center space-y-2"
-                    >
-                      {/* <img
-                    src={file.url}
-                    alt={file.name}
-                    data-file-type={file.type}
-                    width={60}
-                    height={60}
-                    onError={handleImageError}
-                    className="rounded-lg"
-                  /> */}
-
-                      <Card className="w-[200px] rounded-lg border border-[#8E8EFC] shadow-none flex flex-col flex items-center ">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-12 h-12 "
-                              >
-                                {renderFilePreview(file)}
-                              </a>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Name :{file.name}</p>
-                              <p>Size :{formatSize(file.size)}</p>
-                              <p>Type :{file.mime_type}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-
-                        {/* {renderFilePreview(file)} */}
-                        <CardFooter className="bg-[#F5F5F5] py-2 w-full flex items-center justify-center">
-                          <span className="text-sm font-medium flex ">
-                            {truncateFileName(file.name, 10)}
-                          </span>
-                        </CardFooter>
-                      </Card>
-                    </div>
-                  ))
-                ) : (
-                  <div></div>
-                )}
-              </div>
-
-              {/* File Upload Section */}
-              {showFileUpload && (
-                <div
-                  className=" right-0 top-0 w-85 h-20   transition-all duration-300"
-                  style={{ zIndex: 1000 }}
-                >
-                  <FileUpload
-                    showFileUpload={showFileUpload}
-                    setShowFileUpload={setShowFileUpload}
-                    getAllFiles={getAllFiles}
+            <div>
+              <h2 className="text-xl font-bold  ml-14">My Files</h2>
+              {file_id ? (
+                <div className="fixed  right-6 space-x-4 flex">
+                  <Button
+                    variant="outline"
+                    className="shadow-lg outline outline-2 outline-blue-500 bg-black-500 text-white-500"
+                    onClick={handleToggle}
+                  >
+                    +
+                  </Button>
+                  {/* <Button
+                    variant="outline"
+                    className="shadow-lg"
+                    onClick={handleMultipartUploadToggle}
+                  >
+                    Multipart Upload
+                  </Button> */}
+                </div>
+              ) : (
+                ""
+              )}
+              <div className="mt-8 ml-10 flex items-center space-x-4">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    placeholder="Search Title..."
+                    value={search}
+                    type="search"
+                    onChange={handleSearchChange}
+                    className="w-30 pl-8 bg-white-500"
                   />
                 </div>
-              )}
-            </div>
-          ) : (
-            <MyListFiles filesData={filesData} />
-          )}
-          {/* Upload Button */}
-          {file_id ? (
-            <div className="fixed bottom-20 right-20">
-              <button
-                onClick={handleToggle}
-                className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-700 focus:outline-none"
-              >
-                +
-              </button>
+                <div>
+                  <DateRangePicker
+                    ranges={predefinedRanges}
+                    value={selectedDates}
+                    onChange={handleDateChange}
+                    format="dd-MM-yyyy"
+                    editable={false}
+                    showHeader={false}
+                    placeholder="Select Date Range"
+                  />
+                </div>
+              </div>
+              <MyListFiles
+                filesData={filesData}
+                loading={loading}
+                searchParams={searchParams}
+                getAllMyFiles={file_id ? getAllFiles : getAllMyFiles}
+                paginationDetails={paginationDetails}
+                file_id={file_id}
+                setLoading={setLoading}
+              />
             </div>
           ) : (
             ""
           )}
+        </div>
+
+        <div>
+          <Dialog open={showFileUpload}>
+            <DialogContent className="bg-white w-[80%]">
+              <DialogTitle>New FileUpload</DialogTitle>
+              <MultiPartUploadComponent
+                showFileUpload={showFileUpload}
+                setShowFileUpload={setShowFileUpload}
+                getAllFiles={getAllFiles}
+                from="category"
+              />
+              <DialogFooter></DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
       <Loading loading={loading} />
@@ -429,4 +405,4 @@ const Files = () => {
   );
 };
 
-export default Files;
+export default FilesComponent;
